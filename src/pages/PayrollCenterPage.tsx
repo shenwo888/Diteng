@@ -175,7 +175,6 @@ export default function PayrollCenterPage() {
           >
             {t('解锁', 'Unlock')}
           </button>
-          <p className="text-xs text-slate-400 mt-3 text-center">{t('默认初始密码：888888', 'Default initial password: 888888')}</p>
         </div>
       </div>
     );
