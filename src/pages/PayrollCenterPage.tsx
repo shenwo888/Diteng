@@ -80,7 +80,8 @@ export default function PayrollCenterPage() {
   const { t, locale } = useI18n();
 
   const [passwordInput, setPasswordInput] = useState('');
-  const [pwdError, setPwdError] = useState(false);
+  const [pwdError, setPwdError] = useState<string | null>(null);
+  const [authBusy, setAuthBusy] = useState(false);
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
   const [archiveResult, setArchiveResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [selectedArchiveId, setSelectedArchiveId] = useState('');
@@ -98,12 +99,20 @@ export default function PayrollCenterPage() {
     [payrollArchives, selectedArchiveId],
   );
 
-  const handleUnlock = () => {
-    if (unlockAdmin(passwordInput)) {
-      setPasswordInput('');
-      setPwdError(false);
-    } else {
-      setPwdError(true);
+  const handleUnlock = async () => {
+    setAuthBusy(true);
+    try {
+      if (await unlockAdmin(passwordInput)) {
+        setPasswordInput('');
+        setPwdError(null);
+      } else {
+        setPwdError(t('密码错误，请重试', 'Wrong password, please try again'));
+      }
+    } catch (e) {
+      console.error('admin unlock failed', e);
+      setPwdError(t('无法验证密码，请检查网络后重试', 'Could not verify the password. Check your connection and try again.'));
+    } finally {
+      setAuthBusy(false);
     }
   };
 
@@ -153,15 +162,16 @@ export default function PayrollCenterPage() {
           <input
             type="password"
             value={passwordInput}
-            onChange={(e) => { setPasswordInput(e.target.value); setPwdError(false); }}
+            onChange={(e) => { setPasswordInput(e.target.value); setPwdError(null); }}
             onKeyDown={(e) => e.key === 'Enter' && handleUnlock()}
             placeholder={t('输入管理员密码', 'Enter admin password')}
             className={`w-full px-4 py-2.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-sky-400 ${pwdError ? 'border-rose-300 bg-rose-50' : 'border-slate-200'}`}
           />
-          {pwdError && <p className="text-xs text-rose-500 mt-2">{t('密码错误，请重试', 'Wrong password, please try again')}</p>}
+          {pwdError && <p className="text-xs text-rose-500 mt-2">{pwdError}</p>}
           <button
             onClick={handleUnlock}
-            className="w-full mt-4 py-2.5 bg-slate-900 text-white font-medium rounded-lg hover:bg-slate-800 transition-colors"
+            disabled={authBusy}
+            className="w-full mt-4 py-2.5 bg-slate-900 text-white font-medium rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {t('解锁', 'Unlock')}
           </button>

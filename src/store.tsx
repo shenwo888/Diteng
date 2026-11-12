@@ -3,15 +3,8 @@ import type {
   Customer, Companion, Staff, ServiceItem, ServiceTag, GiftItem, Coupon, CouponKind, Order, OrderItem,
   Transaction, GiftRecord, PaymentMethod, PayrollArchive, CurrencySymbol,
 } from '@/types';
-import { loadFromStorage, saveToStorage } from '@/lib/storage';
 import { formatAmount, uid } from '@/lib/format';
 import * as db from '@/lib/db';
-
-const KEYS = {
-  adminPassword: 'club_admin_password',
-};
-
-const DEFAULT_PASSWORD = '888888';
 
 const DEFAULT_SERVICES: ServiceItem[] = [
   { id: 'svc-entertainment', name: '娱乐', pricePerHour: 20, pricePerHalfHour: 12 },
@@ -72,10 +65,9 @@ interface StoreContextType {
   formatMoney: (n: number) => string;
 
   isAdmin: boolean;
-  adminPassword: string;
-  unlockAdmin: (password: string) => boolean;
+  unlockAdmin: (password: string) => Promise<boolean>;
   lockAdmin: () => void;
-  changeAdminPassword: (oldPwd: string, newPwd: string) => boolean;
+  changeAdminPassword: (oldPwd: string, newPwd: string) => Promise<boolean>;
 
   addCustomer: (name: string, contact: string, initialBalance?: number) => Customer;
   updateCustomer: (id: string, name: string, contact: string) => void;
@@ -154,10 +146,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [payrollArchives, setPayrollArchives] = useState<PayrollArchive[]>([]);
   const [currency, setCurrencyState] = useState<CurrencySymbol>('RM');
-  const [adminPassword, setAdminPassword] = useState<string>(() => loadFromStorage(KEYS.adminPassword, DEFAULT_PASSWORD));
   const [isAdmin, setIsAdmin] = useState(false);
-
-  useEffect(() => saveToStorage(KEYS.adminPassword, adminPassword), [adminPassword]);
 
   const [loadAttempt, setLoadAttempt] = useState(0);
 
@@ -204,22 +193,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     persist(db.saveCurrency(symbol));
   };
 
-  const unlockAdmin = (password: string): boolean => {
-    if (password === adminPassword) {
-      setIsAdmin(true);
-      return true;
-    }
-    return false;
+  const unlockAdmin = async (password: string): Promise<boolean> => {
+    const ok = await db.verifyAdminPassword(password);
+    if (ok) setIsAdmin(true);
+    return ok;
   };
 
   const lockAdmin = () => setIsAdmin(false);
 
-  const changeAdminPassword = (oldPwd: string, newPwd: string): boolean => {
-    if (oldPwd !== adminPassword) return false;
-    if (!newPwd || newPwd.length < 4) return false;
-    setAdminPassword(newPwd);
-    return true;
-  };
+  const changeAdminPassword = (oldPwd: string, newPwd: string): Promise<boolean> => db.changeAdminPassword(oldPwd, newPwd);
 
   const addCustomer = (name: string, contact: string, initialBalance = 0): Customer => {
     const c: Customer = { id: uid(), name, contact, balance: initialBalance, createdAt: Date.now() };
@@ -486,7 +468,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       syncError, dismissSyncError: () => setSyncError(null),
       customers, companions, staff, services, serviceTags, giftItems, coupons, orders, transactions,
       currency, setCurrency, formatMoney,
-      isAdmin, adminPassword, unlockAdmin, lockAdmin, changeAdminPassword,
+      isAdmin, unlockAdmin, lockAdmin, changeAdminPassword,
       addCustomer, updateCustomer, deleteCustomer, rechargeCustomer,
       addCompanion, updateCompanion, deleteCompanion,
       addStaff, updateStaff, deleteStaff,

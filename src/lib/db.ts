@@ -244,6 +244,18 @@ export async function saveCurrency(symbol: CurrencySymbol): Promise<void> {
   assertOk((await supabase.from('app_settings').upsert({ key: 'currency', value: { symbol } })).error);
 }
 
+export async function verifyAdminPassword(password: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('admin_verify_password', { p_password: password });
+  assertOk(error);
+  return data === true;
+}
+
+export async function changeAdminPassword(oldPassword: string, newPassword: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('admin_change_password', { p_old: oldPassword, p_new: newPassword });
+  assertOk(error);
+  return data === true;
+}
+
 export async function seedDefaults(services: ServiceItem[], tags: ServiceTag[], gifts: GiftItem[]): Promise<void> {
   assertOk((await supabase.from('services').upsert(services.map((s, i) => ({
     id: s.id, name: s.name, price_per_hour: s.pricePerHour, price_per_half_hour: s.pricePerHalfHour, sort_order: i,
