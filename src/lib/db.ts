@@ -246,7 +246,11 @@ export async function saveCurrency(symbol: CurrencySymbol): Promise<void> {
 
 export async function verifyAdminPassword(password: string): Promise<boolean> {
   const { data, error } = await supabase.rpc('admin_verify_password', { p_password: password });
-  assertOk(error);
+  if (error) {
+    console.error('[admin password] Supabase request failed:', error.message, error.code, error.details);
+    throw error;
+  }
+  console.log('[admin password] Supabase responded; password matches stored value:', data === true, 'raw response:', data);
   return data === true;
 }
 
